@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Detector MVP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 900px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e6e9ff;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .upload-subtext {
+            font-size: 12px;
+            color: #999;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .preview-section {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .preview-section.show {
+            display: block;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results-section {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .results-section.show {
+            display: block;
+        }
+
+        .result-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .classification {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .classification.real {
+            color: #10b981;
+        }
+
+        .classification.fake {
+            color: #ef4444;
+        }
+
+        .classification.uncertain {
+            color: #f59e0b;
+        }
+
+        .score-bar {
+            width: 100%;
+            height: 12px;
+            background: #e5e7eb;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .score-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ef4444, #f59e0b, #10b981);
+            transition: width 0.5s ease;
+        }
+
+        .score-text {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .confidence-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .confidence-badge.high {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .confidence-badge.low {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .methods-section {
+            margin-top: 20px;
+        }
+
+        .method-result {
+            background: white;
+            border-left: 4px solid #667eea;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            position: relative;
+        }
+
+        .method-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .method-info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            background: #e0e7ff;
+            color: #4f46e5;
+            border-radius: 50%;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: help;
+            position: relative;
+        }
+
+        .method-info-icon:hover .tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .tooltip {
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%) translateY(-5px);
+            background: #1f2937;
+            color: white;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: normal;
+            width: 280px;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            pointer-events: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            line-height: 1.5;
+        }
+
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: #1f2937;
+        }
+
+        .method-score {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .error {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+            color: #991b1b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #1e40af;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 AI Image Detector</h1>
+            <p>MVP - Detecta se uma imagem é gerada por IA ou real usando múltiplas técnicas</p>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">Arraste uma imagem aqui ou clique para selecionar</div>
+            <div class="upload-subtext">PNG, JPG, JPEG, GIF ou WEBP - Máx 16MB</div>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+
+        <div class="preview-section" id="previewSection">
+            <img id="previewImage" class="preview-image" alt="Preview">
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analisando imagem com 4 técnicas diferentes...</p>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="results-section" id="resultsSection">
+            <div class="result-card">
+                <div class="classification" id="classification"></div>
+                <span class="confidence-badge" id="confidenceBadge"></span>
+                
+                <div class="score-bar">
+                    <div class="score-fill" id="scoreFill"></div>
+                </div>
+
+                <div class="score-text">
+                    <span>AI Gerada</span>
+                    <span id="scoreValue">0%</span>
+                    <span>Real</span>
+                </div>
+
+                <div style="margin-bottom: 20px; font-size: 13px; color: #666;">
+                    <strong>Concordância entre métodos:</strong> <span id="methodAgreement">-</span>
+                </div>
+
+                <div class="methods-section">
+                    <div style="font-weight: 600; margin-bottom: 10px; font-size: 14px;">Detalhes dos Métodos:</div>
+                    <div id="methodsContainer"></div>
+                </div>
+
+                <div class="info-box">
+                    ℹ️ Este é um MVP experimental. Os resultados são baseados em análises de padrões técnicos e podem ter falsos positivos/negativos.
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-secondary" onclick="resetAnalysis()">Analisar outra imagem</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const previewSection = document.getElementById('previewSection');
+        const previewImage = document.getElementById('previewImage');
+        const loading = document.getElementById('loading');
+        const resultsSection = document.getElementById('resultsSection');
+        const errorDiv = document.getElementById('error');
+
+        // Drag and drop
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            if (!file || !file.type.startsWith('image/')) {
+                showError('Por favor, selecione uma imagem válida');
+                return;
+            }
+
+            // Preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                previewSection.classList.add('show');
+                analyzeImage(file);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function analyzeImage(file) {
+            loading.classList.add('show');
+            resultsSection.classList.remove('show');
+            errorDiv.classList.remove('show');
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/api/analyze', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.classList.remove('show');
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    displayResults(data);
+                }
+            })
+            .catch(error => {
+                loading.classList.remove('show');
+                showError('Erro ao analisar imagem: ' + error.message);
+            });
+        }
+
+        function displayResults(data) {
+            const score = data.final_score;
+            const classification = data.classification;
+            
+            // Classificação e cor
+            const classDiv = document.getElementById('classification');
+            classDiv.textContent = classification;
+            classDiv.className = 'classification';
+            if (classification === 'Real Image') {
+                classDiv.classList.add('real');
+            } else if (classification === 'AI Generated') {
+                classDiv.classList.add('fake');
+            } else {
+                classDiv.classList.add('uncertain');
+            }
+
+            // Confidence badge
+            const confidenceBadge = document.getElementById('confidenceBadge');
+            confidenceBadge.textContent = data.confidence_level + ' Confidence';
+            confidenceBadge.className = 'confidence-badge ' + data.confidence_level.toLowerCase();
+
+            // Score bar
+            const scoreFill = document.getElementById('scoreFill');
+            scoreFill.style.width = (score * 100) + '%';
+            document.getElementById('scoreValue').textContent = Math.round(score * 100) + '%';
+
+            // Method agreement
+            const agreementSpan = document.getElementById('methodAgreement');
+            if (data.method_agreement) {
+                agreementSpan.textContent = data.method_agreement;
+                agreementSpan.style.color = parseFloat(data.method_agreement) > 0.7 ? '#10b981' : '#f59e0b';
+            }
+
+            // Explicações dos métodos
+            const methodExplanations = {
+                'Luminance Gradient PCA': 'Analisa a coerência dos gradientes de luz na imagem. Fotos reais têm padrões naturais de iluminação, enquanto IA pode gerar estruturas instáveis.',
+                'Spectral Analysis (FFT)': 'Examina frequências na imagem via transformada de Fourier. Imagens reais têm decaimento natural de energia, IA pode ter padrões artificiais.',
+                'Texture LBP': 'Detecta padrões de textura locais. Fotos reais têm texturas orgânicas e variadas, IA pode gerar padrões mais uniformes ou repetitivos.',
+                'Noise Analysis': 'Mede ruído e consistência. Câmeras reais produzem ruído natural do sensor, IA tende a ser muito limpa ou ter ruído artificial.'
+            };
+
+            // Métodos detalhados
+            const methodsContainer = document.getElementById('methodsContainer');
+            methodsContainer.innerHTML = '';
+            data.detailed_results.forEach(result => {
+                const methodDiv = document.createElement('div');
+                methodDiv.className = 'method-result';
+                
+                const explanation = methodExplanations[result.method] || 'Método de análise técnica';
+                
+                if (result.error) {
+                    methodDiv.innerHTML = `
+                        <div class="method-name">
+                            ${result.method}
+                            <span class="method-info-icon">
+                                i
+                                <div class="tooltip">${explanation}</div>
+                            </span>
+                        </div>
+                        <div class="method-score">Erro: ${result.error}</div>
+                    `;
+                } else {
+                    const methodScore = (result.score * 100).toFixed(1);
+                    methodDiv.innerHTML = `
+                        <div class="method-name">
+                            ${result.method}
+                            <span class="method-info-icon">
+                                i
+                                <div class="tooltip">${explanation}</div>
+                            </span>
+                        </div>
+                        <div class="method-score">Score: ${methodScore}% | ${result.confidence}</div>
+                    `;
+                }
+                methodsContainer.appendChild(methodDiv);
+            });
+
+            resultsSection.classList.add('show');
+        }
+
+        function showError(message) {
+            errorDiv.textContent = '❌ ' + message;
+            errorDiv.classList.add('show');
+        }
+
+        function resetAnalysis() {
+            fileInput.value = '';
+            previewSection.classList.remove('show');
+            resultsSection.classList.remove('show');
+            errorDiv.classList.remove('show');
+            uploadArea.classList.remove('dragover');
+        }
+    </script>
+</body>
+</html>
